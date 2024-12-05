@@ -23,10 +23,25 @@ extension Swift.String {
     }
 }
 
+extension AK.String {
+    public init(swiftString: consuming Swift.String) {
+        self.init()  // Create empty string first, using default constructor
+        swiftString.withUTF8 { buffer in
+            self = AK.String.from_utf8_without_validation(AK.ReadonlyBytes(buffer.baseAddress!, buffer.count))
+        }
+    }
+}
 extension AK.StringView: ExpressibleByStringLiteral {
     public typealias StringLiteralType = Swift.StaticString
 
     public init(stringLiteral value: StringLiteralType) {
         self.init(value.utf8Start, value.utf8CodeUnitCount)
+    }
+
+    public func endsWith(_ suffix: AK.StringView) -> Bool {
+        if suffix.length() == 1 {
+            return self.ends_with(suffix[0])
+        }
+        return self.ends_with(suffix, AK.CaseSensitivity.sensitive)
     }
 }

@@ -10,7 +10,7 @@
       "hidden": true,
       "name": "default_base",
       "displayName": "Default Config",
-      "binaryDir": "${fileDir}/Build/ladybird",
+      "binaryDir": "${fileDir}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "SERENITY_CACHE_DIR": "${fileDir}/Build/caches",
@@ -20,8 +20,8 @@
       },
       "environment": {
         "LADYBIRD_SOURCE_DIR": "${fileDir}",
-        "VCPKG_ROOT": "${fileDir}/Toolchain/Tarballs/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Toolchain/Build/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}"
+        "VCPKG_ROOT": "${fileDir}/Build/vcpkg",
+        "VCPKG_BINARY_SOURCES": "clear;files,${fileDir}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -88,11 +88,23 @@
       "toolset": "ClangCL"
     },
     {
+      "name": "Distribution",
+      "inherits": "default",
+      "displayName": "Distribution Config",
+      "description": "Distribution build with static libraries using Ninja generator",
+      "binaryDir": "${fileDir}/Build/distribution",
+      "cacheVariables": {
+        "BUILD_SHARED_LIBS": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/distribution-triplets"
+      }
+    },
+    {
       "name": "Debug",
       "inherits": "default",
       "displayName": "Debug Config",
       "description": "Debug build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/ladybird-debug",
+      "binaryDir": "${fileDir}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "VCPKG_OVERLAY_TRIPLETS": "${fileDir}/Meta/CMake/vcpkg/debug-triplets"
@@ -103,7 +115,7 @@
       "inherits": "default",
       "displayName": "Sanitizer Config",
       "description": "Sanitizer build using Ninja generator",
-      "binaryDir": "${fileDir}/Build/ladybird-sanitizers",
+      "binaryDir": "${fileDir}/Build/sanitizers",
       "cacheVariables": {
         "ENABLE_UNDEFINED_SANITIZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON",
@@ -127,6 +139,15 @@
       "displayName": "Non-Sanitizer CI Config"
     },
     {
+      "name": "Distribution_CI",
+      "inherits": [
+        "vcpkg_ci",
+        "Distribution"
+      ],
+      "displayName": "Distribution CI Config",
+      "description": "Distribution build with GitHub Actions cache"
+    },
+    {
       "name": "Sanitizer_CI",
       "inherits": [
         "vcpkg_ci",
@@ -138,20 +159,26 @@
       }
     },
     {
-      "name": "Fuzzers_CI",
-      "inherits": [
-        "vcpkg_ci",
-        "default"
-      ],
+      "name": "Fuzzers",
+      "inherits": "default",
       "displayName": "Fuzzers Config",
-      "description": "Fuzzers build with GitHub Actions cache",
-      "binaryDir": "${fileDir}/Build/ladybird-fuzzers",
+      "description": "Fuzzers build",
+      "binaryDir": "${fileDir}/Build/fuzzers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "",
         "ENABLE_QT": "OFF",
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
+    },
+    {
+      "name": "Fuzzers_CI",
+      "inherits": [
+        "vcpkg_ci",
+        "Fuzzers"
+      ],
+      "displayName": "Fuzzers CI Config",
+      "description": "Fuzzers build with GitHub Actions cache"
     }
   ],
   "buildPresets": [
@@ -212,8 +239,8 @@
       "inherits": "default",
       "configurePreset": "Sanitizer",
       "environment": {
-        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1",
-        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1"
+        "ASAN_OPTIONS": "strict_string_checks=1:check_initialization_order=1:strict_init_order=1:detect_stack_use_after_return=1:allocator_may_return_null=1:$penv{ASAN_OPTIONS}",
+        "UBSAN_OPTIONS": "print_stacktrace=1:print_summary=1:halt_on_error=1:$penv{UBSAN_OPTIONS}"
       }
     },
     {

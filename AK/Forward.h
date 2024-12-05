@@ -31,7 +31,6 @@ class ConstrainedStream;
 class CountingStream;
 class DeprecatedFlyString;
 class ByteString;
-class DeprecatedStringCodePointIterator;
 class Duration;
 class Error;
 class FlyString;
@@ -125,6 +124,12 @@ class NonnullOwnPtr;
 template<typename T>
 class Optional;
 
+template<>
+class Optional<String>;
+
+template<>
+class Optional<FlyString>;
+
 template<typename T>
 class RefPtr;
 
@@ -157,7 +162,6 @@ using AK::CircularQueue;
 using AK::ConstrainedStream;
 using AK::CountingStream;
 using AK::DeprecatedFlyString;
-using AK::DeprecatedStringCodePointIterator;
 using AK::DoublyLinkedList;
 using AK::Error;
 using AK::ErrorOr;

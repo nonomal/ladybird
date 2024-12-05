@@ -14,7 +14,7 @@
 #include <LibIDL/Types.h>
 #include <LibMain/Main.h>
 
-static ErrorOr<void> add_to_interface_sets(IDL::Interface&, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed);
+static ErrorOr<void> add_to_interface_sets(IDL::Interface&, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed);
 static ByteString s_error_string;
 
 struct LegacyConstructor {
@@ -64,7 +64,7 @@ static ErrorOr<void> generate_intrinsic_definitions(StringView output_path, Vect
     SourceGenerator generator(builder);
 
     generator.append(R"~~~(
-#include <LibJS/Heap/DeferGC.h>
+#include <LibGC/DeferGC.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibWeb/Bindings/Intrinsics.h>)~~~");
 
@@ -103,7 +103,7 @@ namespace Web::Bindings {
 template<>
 void Intrinsics::create_web_namespace<@namespace_class@>(JS::Realm& realm)
 {
-    auto namespace_object = heap().allocate<@namespace_class@>(realm, realm);
+    auto namespace_object = realm.create<@namespace_class@>(realm);
     m_namespaces.set("@interface_name@"_fly_string, namespace_object);
 
     [[maybe_unused]] static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;)~~~");
@@ -139,16 +139,16 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
         if (!named_properties_class.is_empty()) {
             gen.set("named_properties_class", named_properties_class);
             gen.append(R"~~~(
-    auto named_properties_object = heap().allocate<@named_properties_class@>(realm, realm);
+    auto named_properties_object = realm.create<@named_properties_class@>(realm);
     m_prototypes.set("@named_properties_class@"_fly_string, named_properties_object);
 
 )~~~");
         }
         gen.append(R"~~~(
-    auto prototype = heap().allocate<@prototype_class@>(realm, realm);
+    auto prototype = realm.create<@prototype_class@>(realm);
     m_prototypes.set("@interface_name@"_fly_string, prototype);
 
-    auto constructor = heap().allocate<@constructor_class@>(realm, realm);
+    auto constructor = realm.create<@constructor_class@>(realm);
     m_constructors.set("@interface_name@"_fly_string, constructor);
 
     prototype->define_direct_property(vm.names.constructor, constructor.ptr(), JS::Attribute::Writable | JS::Attribute::Configurable);
@@ -159,7 +159,7 @@ void Intrinsics::create_web_prototype_and_constructor<@prototype_class@>(JS::Rea
             gen.set("legacy_interface_name", legacy_constructor->name);
             gen.set("legacy_constructor_class", legacy_constructor->constructor_class);
             gen.append(R"~~~(
-    auto legacy_constructor = heap().allocate<@legacy_constructor_class@>(realm, realm);
+    auto legacy_constructor = realm.create<@legacy_constructor_class@>(realm);
     m_constructors.set("@legacy_interface_name@"_fly_string, legacy_constructor);
 
     legacy_constructor->define_direct_property(vm.names.name, JS::PrimitiveString::create(vm, "@legacy_interface_name@"_string), JS::Attribute::Configurable);)~~~");
@@ -265,7 +265,7 @@ void add_@global_object_snake_name@_exposed_interfaces(JS::Object& global)
     static constexpr u8 attr = JS::Attribute::Writable | JS::Attribute::Configurable;
 )~~~");
 
-    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, Optional<LegacyConstructor> const& legacy_constructor, Optional<ByteString> const& legacy_alias_name) {
+    auto add_interface = [](SourceGenerator& gen, StringView name, StringView prototype_class, Optional<LegacyConstructor> const& legacy_constructor, Optional<ByteString const&> legacy_alias_name) {
         gen.set("interface_name", name);
         gen.set("prototype_class", prototype_class);
 
@@ -335,18 +335,32 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Core::ArgsParser args_parser;
 
     StringView output_path;
-    StringView base_path;
+    Vector<ByteString> base_paths;
     Vector<ByteString> paths;
 
     args_parser.add_option(output_path, "Path to output generated files into", "output-path", 'o', "output-path");
-    args_parser.add_option(base_path, "Path to root of IDL file tree", "base-path", 'b', "base-path");
+    args_parser.add_option(Core::ArgsParser::Option {
+        .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
+        .help_string = "Path to root of IDL file tree(s)",
+        .long_name = "base-path",
+        .short_name = 'b',
+        .value_name = "base-path",
+        .accept_value = [&](StringView s) {
+            base_paths.append(s);
+            return true;
+        },
+    });
     args_parser.add_positional_argument(paths, "Paths of every IDL file that could be Exposed", "paths");
     args_parser.parse(arguments);
 
     VERIFY(!paths.is_empty());
-    VERIFY(!base_path.is_empty());
+    VERIFY(!base_paths.is_empty());
 
-    LexicalPath const lexical_base(base_path);
+    Vector<ByteString> lexical_bases;
+    for (auto const& base_path : base_paths) {
+        VERIFY(!base_path.is_empty());
+        lexical_bases.append(base_path);
+    }
 
     // Read in all IDL files, we must own the storage for all of these for the lifetime of the program
     Vector<ByteString> file_contents;
@@ -367,18 +381,19 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     Vector<IDL::Interface&> window_exposed;
     Vector<IDL::Interface&> dedicated_worker_exposed;
     Vector<IDL::Interface&> shared_worker_exposed;
+    Vector<IDL::Interface&> shadow_realm_exposed;
     // TODO: service_worker_exposed
 
     for (size_t i = 0; i < paths.size(); ++i) {
         auto const& path = paths[i];
-        IDL::Parser parser(path, file_contents[i], lexical_base.string());
+        IDL::Parser parser(path, file_contents[i], lexical_bases);
         auto& interface = parser.parse();
         if (interface.name.is_empty()) {
             s_error_string = ByteString::formatted("Interface for file {} missing", path);
             return Error::from_string_view(s_error_string.view());
         }
 
-        TRY(add_to_interface_sets(interface, intrinsics, window_exposed, dedicated_worker_exposed, shared_worker_exposed));
+        TRY(add_to_interface_sets(interface, intrinsics, window_exposed, dedicated_worker_exposed, shared_worker_exposed, shadow_realm_exposed));
         parsers.append(move(parser));
     }
 
@@ -387,11 +402,13 @@ ErrorOr<int> serenity_main(Main::Arguments arguments)
     TRY(generate_exposed_interface_header("Window"sv, output_path));
     TRY(generate_exposed_interface_header("DedicatedWorker"sv, output_path));
     TRY(generate_exposed_interface_header("SharedWorker"sv, output_path));
+    TRY(generate_exposed_interface_header("ShadowRealm"sv, output_path));
     // TODO: ServiceWorkerExposed.h
 
     TRY(generate_exposed_interface_implementation("Window"sv, output_path, window_exposed));
     TRY(generate_exposed_interface_implementation("DedicatedWorker"sv, output_path, dedicated_worker_exposed));
     TRY(generate_exposed_interface_implementation("SharedWorker"sv, output_path, shared_worker_exposed));
+    TRY(generate_exposed_interface_implementation("ShadowRealm"sv, output_path, shadow_realm_exposed));
     // TODO: ServiceWorkerExposed.cpp
 
     return 0;
@@ -404,8 +421,10 @@ enum ExposedTo {
     ServiceWorker = 0x4,
     AudioWorklet = 0x8,
     Window = 0x10,
-    AllWorkers = 0xF, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now
-    All = 0x1F,
+    ShadowRealm = 0x20,
+    Worklet = 0x40,
+    AllWorkers = DedicatedWorker | SharedWorker | ServiceWorker | AudioWorklet, // FIXME: Is "AudioWorklet" a Worker? We'll assume it is for now (here, and line below)
+    All = AllWorkers | Window | ShadowRealm | Worklet,
 };
 AK_ENUM_BITWISE_OPERATORS(ExposedTo);
 
@@ -436,6 +455,10 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
         return ExposedTo::ServiceWorker;
     if (exposed == "AudioWorklet"sv)
         return ExposedTo::AudioWorklet;
+    if (exposed == "Worklet"sv)
+        return ExposedTo::Worklet;
+    if (exposed == "ShadowRealm"sv)
+        return ExposedTo::ShadowRealm;
 
     if (exposed[0] == '(') {
         ExposedTo whom = Nobody;
@@ -453,6 +476,10 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
                 whom |= ExposedTo::ServiceWorker;
             } else if (candidate == "AudioWorklet"sv) {
                 whom |= ExposedTo::AudioWorklet;
+            } else if (candidate == "Worklet"sv) {
+                whom |= ExposedTo::Worklet;
+            } else if (candidate == "ShadowRealm"sv) {
+                whom |= ExposedTo::ShadowRealm;
             } else {
                 s_error_string = ByteString::formatted("Unknown Exposed attribute candidate {} in {} in {}", candidate, exposed, interface.name);
                 return Error::from_string_view(s_error_string.view());
@@ -469,7 +496,7 @@ static ErrorOr<ExposedTo> parse_exposure_set(IDL::Interface& interface)
     return Error::from_string_view(s_error_string.view());
 }
 
-ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed)
+ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Interface&>& intrinsics, Vector<IDL::Interface&>& window_exposed, Vector<IDL::Interface&>& dedicated_worker_exposed, Vector<IDL::Interface&>& shared_worker_exposed, Vector<IDL::Interface&>& shadow_realm_exposed)
 {
     // TODO: Add service worker exposed and audio worklet exposed
     auto whom = TRY(parse_exposure_set(interface));
@@ -484,6 +511,9 @@ ErrorOr<void> add_to_interface_sets(IDL::Interface& interface, Vector<IDL::Inter
 
     if (whom & ExposedTo::SharedWorker)
         shared_worker_exposed.append(interface);
+
+    if (whom & ExposedTo::ShadowRealm)
+        shadow_realm_exposed.append(interface);
 
     return {};
 }

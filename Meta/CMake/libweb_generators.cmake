@@ -64,6 +64,17 @@ function (generate_css_implementation)
         arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Keywords.json"
     )
 
+    invoke_idl_generator(
+        "GeneratedCSSStyleProperties.cpp"
+        "GeneratedCSSStyleProperties.idl"
+        Lagom::GenerateCSSStyleProperties
+        "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+        "CSS/GeneratedCSSStyleProperties.h"
+        "CSS/GeneratedCSSStyleProperties.cpp"
+        "CSS/GeneratedCSSStyleProperties.idl"
+        arguments -j "${LIBWEB_INPUT_FOLDER}/CSS/Properties.json"
+    )
+
     embed_as_string(
         "DefaultStyleSheetSource.cpp"
         "${LIBWEB_INPUT_FOLDER}/CSS/Default.css"
@@ -98,6 +109,7 @@ function (generate_css_implementation)
 
     set(CSS_GENERATED_HEADERS
        "CSS/Enums.h"
+       "CSS/GeneratedCSSStyleProperties.h"
        "CSS/Keyword.h"
        "CSS/MathFunctions.h"
        "CSS/MediaFeatureID.h"
@@ -111,10 +123,18 @@ function (generate_css_implementation)
     endif()
     list(APPEND LIBWEB_ALL_GENERATED_HEADERS ${CSS_GENERATED_HEADERS})
     set(LIBWEB_ALL_GENERATED_HEADERS ${LIBWEB_ALL_GENERATED_HEADERS} PARENT_SCOPE)
+
+    set(CSS_GENERATED_IDL
+        "GeneratedCSSStyleProperties.idl"
+    )
+    list(APPEND LIBWEB_ALL_GENERATED_IDL ${CSS_GENERATED_IDL})
+    set(LIBWEB_ALL_GENERATED_IDL ${LIBWEB_ALL_GENERATED_IDL} PARENT_SCOPE)
 endfunction()
 
 function (generate_js_bindings target)
     set(LIBWEB_INPUT_FOLDER "${CMAKE_CURRENT_SOURCE_DIR}")
+    set(generated_idl_targets ${LIBWEB_ALL_GENERATED_IDL})
+    list(TRANSFORM generated_idl_targets PREPEND "generate_")
     function(libweb_js_bindings class)
         cmake_parse_arguments(PARSE_ARGV 1 LIBWEB_BINDINGS "NAMESPACE;ITERABLE;GLOBAL" "" "")
         get_filename_component(basename "${class}" NAME)
@@ -164,7 +184,7 @@ function (generate_js_bindings target)
         add_custom_command(
             OUTPUT ${BINDINGS_SOURCES}
             COMMAND "$<TARGET_FILE:Lagom::BindingsGenerator>" -o "Bindings" --depfile "Bindings/${basename}.d"
-                    ${depfile_prefix_arg} "${LIBWEB_INPUT_FOLDER}/${class}.idl" "${LIBWEB_INPUT_FOLDER}"
+                    ${depfile_prefix_arg} "${LIBWEB_INPUT_FOLDER}/${class}.idl" "${LIBWEB_INPUT_FOLDER}" "${CMAKE_CURRENT_BINARY_DIR}"
             VERBATIM
             COMMENT "Generating Bindings for ${class}"
             DEPENDS Lagom::BindingsGenerator
@@ -175,6 +195,7 @@ function (generate_js_bindings target)
         add_custom_target(generate_${basename} DEPENDS ${BINDINGS_SOURCES})
         add_dependencies(all_generated generate_${basename})
         add_dependencies(${target} generate_${basename})
+        add_dependencies(generate_${basename} ${generated_idl_targets})
 
         set(BINDINGS_HEADERS ${BINDINGS_SOURCES})
         list(FILTER BINDINGS_HEADERS INCLUDE REGEX "\.h$")
@@ -195,17 +216,20 @@ function (generate_js_bindings target)
             IntrinsicDefinitions.cpp
             DedicatedWorkerExposedInterfaces.cpp DedicatedWorkerExposedInterfaces.h
             SharedWorkerExposedInterfaces.cpp SharedWorkerExposedInterfaces.h
+            ShadowRealmExposedInterfaces.cpp ShadowRealmExposedInterfaces.h
             WindowExposedInterfaces.cpp WindowExposedInterfaces.h)
         list(TRANSFORM exposed_interface_sources PREPEND "Bindings/")
         add_custom_command(
             OUTPUT  ${exposed_interface_sources}
             COMMAND "${CMAKE_COMMAND}" -E make_directory "tmp"
-            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" -b "${LIBWEB_INPUT_FOLDER}" ${LIBWEB_ALL_IDL_FILES}
+            COMMAND $<TARGET_FILE:Lagom::GenerateWindowOrWorkerInterfaces> -o "${CMAKE_CURRENT_BINARY_DIR}/tmp" -b "${LIBWEB_INPUT_FOLDER}" -b "${CMAKE_CURRENT_BINARY_DIR}" ${LIBWEB_ALL_IDL_FILES}
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/IntrinsicDefinitions.cpp "Bindings/IntrinsicDefinitions.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.h "Bindings/DedicatedWorkerExposedInterfaces.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/DedicatedWorkerExposedInterfaces.cpp "Bindings/DedicatedWorkerExposedInterfaces.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/SharedWorkerExposedInterfaces.h "Bindings/SharedWorkerExposedInterfaces.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/SharedWorkerExposedInterfaces.cpp "Bindings/SharedWorkerExposedInterfaces.cpp"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/ShadowRealmExposedInterfaces.h "Bindings/ShadowRealmExposedInterfaces.h"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/ShadowRealmExposedInterfaces.cpp "Bindings/ShadowRealmExposedInterfaces.cpp"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/WindowExposedInterfaces.h "Bindings/WindowExposedInterfaces.h"
             COMMAND "${CMAKE_COMMAND}" -E copy_if_different tmp/WindowExposedInterfaces.cpp "Bindings/WindowExposedInterfaces.cpp"
             COMMAND "${CMAKE_COMMAND}" -E remove_directory "${CMAKE_CURRENT_BINARY_DIR}/tmp"
@@ -216,6 +240,7 @@ function (generate_js_bindings target)
         add_custom_target(generate_exposed_interfaces DEPENDS ${exposed_interface_sources})
         add_dependencies(all_generated generate_exposed_interfaces)
         add_dependencies(${target} generate_exposed_interfaces)
+        add_dependencies(generate_exposed_interfaces ${generated_idl_targets})
 
         list(TRANSFORM exposed_interface_sources PREPEND "${CMAKE_CURRENT_BINARY_DIR}/")
         set(exposed_interface_headers ${exposed_interface_sources})

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2018-2022, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
+ * Copyright (c) 2023-2024, Tim Flynn <trflynn89@ladybird.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -101,6 +101,7 @@ public:
     ErrorOr<String> to_uppercase(Optional<StringView> const& locale = {}) const;
     ErrorOr<String> to_titlecase(Optional<StringView> const& locale = {}, TrailingCodePointTransformation trailing_code_point_transformation = TrailingCodePointTransformation::Lowercase) const;
     ErrorOr<String> to_casefold() const;
+    ErrorOr<String> to_fullwidth() const;
 
     [[nodiscard]] String to_ascii_lowercase() const;
     [[nodiscard]] String to_ascii_uppercase() const;
@@ -143,6 +144,7 @@ public:
 
     ErrorOr<String> trim(Utf8View const& code_points_to_trim, TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim(StringView code_points_to_trim, TrimMode mode = TrimMode::Both) const;
+    ErrorOr<String> trim_whitespace(TrimMode mode = TrimMode::Both) const;
     ErrorOr<String> trim_ascii_whitespace(TrimMode mode = TrimMode::Both) const;
 
     ErrorOr<Vector<String>> split_limit(u32 separator, size_t limit, SplitBehavior = SplitBehavior::Nothing) const;
@@ -211,6 +213,7 @@ public:
 
 private:
     friend class ::AK::FlyString;
+    friend class Optional<String>;
 
     using ShortString = Detail::ShortString;
 
@@ -218,6 +221,117 @@ private:
         : StringBase(move(base))
     {
     }
+
+    explicit constexpr String(nullptr_t)
+        : StringBase(nullptr)
+    {
+    }
+};
+
+template<>
+class Optional<String> : public OptionalBase<String> {
+    template<typename U>
+    friend class Optional;
+
+public:
+    using ValueType = String;
+
+    Optional() = default;
+
+    template<SameAs<OptionalNone> V>
+    Optional(V) { }
+
+    Optional(Optional<String> const& other)
+    {
+        if (other.has_value())
+            m_value = other.m_value;
+    }
+
+    Optional(Optional&& other)
+        : m_value(move(other.m_value))
+    {
+    }
+
+    template<typename U = String>
+    requires(!IsSame<OptionalNone, RemoveCVReference<U>>)
+    explicit(!IsConvertible<U&&, String>) Optional(U&& value)
+    requires(!IsSame<RemoveCVReference<U>, Optional<String>> && IsConstructible<String, U &&>)
+        : m_value(forward<U>(value))
+    {
+    }
+
+    template<SameAs<OptionalNone> V>
+    Optional& operator=(V)
+    {
+        clear();
+        return *this;
+    }
+
+    Optional& operator=(Optional const& other)
+    {
+        if (this != &other) {
+            m_value = other.m_value;
+        }
+        return *this;
+    }
+
+    Optional& operator=(Optional&& other)
+    {
+        if (this != &other) {
+            m_value = move(other.m_value);
+        }
+        return *this;
+    }
+
+    template<typename O>
+    ALWAYS_INLINE bool operator==(Optional<O> const& other) const
+    {
+        return has_value() == other.has_value() && (!has_value() || value() == other.value());
+    }
+
+    template<typename O>
+    ALWAYS_INLINE bool operator==(O const& other) const
+    {
+        return has_value() && value() == other;
+    }
+
+    void clear()
+    {
+        m_value = String(nullptr);
+    }
+
+    [[nodiscard]] bool has_value() const
+    {
+        return !m_value.is_invalid();
+    }
+
+    [[nodiscard]] String& value() &
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] String const& value() const&
+    {
+        VERIFY(has_value());
+        return m_value;
+    }
+
+    [[nodiscard]] String value() &&
+    {
+        return release_value();
+    }
+
+    [[nodiscard]] String release_value()
+    {
+        VERIFY(has_value());
+        String released_value = m_value;
+        clear();
+        return released_value;
+    }
+
+private:
+    String m_value { nullptr };
 };
 
 template<>

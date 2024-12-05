@@ -1,6 +1,6 @@
 # Testing Ladybird
 
-Tests are locates in `Tests/`, with a directory for each library.
+Tests are located in `Tests/`, with a directory for each library.
 
 Every feature or bug fix added to LibWeb should have a corresponding test in `Tests/LibWeb`.
 The test should be either a Text, Layout, Ref, or Screenshot test depending on the feature.
@@ -8,13 +8,13 @@ Tests of internal C++ code go in their own `TestFoo.cpp` file in `Tests/LibWeb`.
 
 ## Running Tests
 
-> [!NOTE]  
+> [!NOTE]
 > To reproduce a CI failure, see the section on [Running with Sanitizers](#running-with-sanitizers).
 
 The easiest way to run tests is to use the `ladybird.sh` script. The LibWeb tests are registered with CMake as a test in
-`Ladybird/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.sh test` or run
+`UI/CMakeLists.txt`. Using the built-in test filtering, you can run all tests with `Meta/ladybird.sh test` or run
 just the LibWeb tests with `Meta/ladybird.sh test LibWeb`. The second way is to invoke the headless browser test runner
-directly. See the invocation in `Ladybird/CMakeLists.txt` for the expected command line arguments.
+directly. See the invocation in `UI/CMakeLists.txt` for the expected command line arguments.
 
 A third way is to invoke `ctest` directly. The simplest method is to use the `default` preset from ``CMakePresets.json``:
 
@@ -91,7 +91,7 @@ Enabling the Qt chrome is recommended when running the Web Platform Tests on Mac
 following command:
 
 ```sh
-cmake -GNinja Build/ladybird -DENABLE_QT=ON
+cmake -GNinja Build/release -DENABLE_QT=ON
 ```
 
 Example usage:
@@ -107,8 +107,19 @@ git checkout my-css-change
 # Pull the latest changes from the upstream WPT repository
 ./Meta/WPT.sh update
 # Run all of the Web Platform Tests, outputting the results to results.log
-./Meta/WPT.sh run --log results.log 
+./Meta/WPT.sh run --log results.log
 ```
+
+### Importing Web Platform Tests
+
+You can import certain Web Platform Tests (WPT) tests into your Ladybird clone (if they’re tests of type that can be imported — and especially if any code changes you’re making cause Ladybird to pass any WPT tests it hasn’t yet been passing). Here’s how:
+
+```sh
+./Meta/WPT.sh import html/dom/aria-attribute-reflection.html
+```
+
+That is, you give `./Meta/WPT.sh import` the path part of any `http://wpt.live/` URL for a WPT test you want to import. It will then download both that test and any of its JavaScript scripts, copy those to the `Tests/LibWeb/<test-type>/input/wpt-import` directory, run the test, and then in the `Tests/LibWeb/<test-type>/expected/wpt-import` directory, it will create a file with the expected results from the test.
+
 
 ## Writing tests
 
@@ -147,7 +158,7 @@ are identical. These are ideal for testing visual effects such as background ima
 difficult to recreate the effect in the reference page, (such as for SVG or canvas,) consider using a Screenshot test
 instead.
 
-Each Ref test includes a special `<link rel="match" href="reference/my-test-ref.html" />` tag, which the test runner
+Each Ref test includes a special `<link rel="match" href="../expected/my-test-ref.html" />` tag, which the test runner
 uses to locate the reference page. In this way, multiple tests can use the same reference.
 
 ### Screenshot
@@ -156,5 +167,5 @@ Screenshot tests can be thought of as a subtype of Ref tests, where the referenc
 to a screenshot of the expected output. In general, try to avoid using them if a regular Ref test would do, as they are
 sensitive to small rendering changes, and won't work on all platforms.
 
-Like Ref tests, they require a `<link rel="match" href="reference/my-test-ref.html" />` tag to indicate the reference
+Like Ref tests, they require a `<link rel="match" href="../expected/my-test-ref.html" />` tag to indicate the reference
 page to use.

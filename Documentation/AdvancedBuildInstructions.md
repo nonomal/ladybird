@@ -6,7 +6,7 @@ This file covers a few advanced scenarios that go beyond what the basic build gu
 
 The `Meta/ladybird.sh` script provides an abstraction over the build targets which are made available by CMake. The
 following build targets cannot be accessed through the script and have to be used directly by changing the current
-directory to `Build/ladybird` and then running `ninja <target>`:
+directory to `Build/release` and then running `ninja <target>`:
 
 - `ninja check-style`: Runs the same linters the CI does to verify project style on changed files
 - `ninja lint-shell-scripts`: Checks style of shell scripts in the source tree with shellcheck
@@ -17,7 +17,7 @@ directory to `Build/ladybird` and then running `ninja <target>`:
 There are some optional features that can be enabled during compilation that are intended to help with specific types of development work or introduce experimental features. Currently, the following build options are available:
 - `ENABLE_ADDRESS_SANITIZER`: builds in runtime checks for memory corruption bugs (like buffer overflows and memory leaks) in Lagom test cases.
 - `ENABLE_MEMORY_SANITIZER`: enables runtime checks for uninitialized memory accesses in Lagom test cases.
-- `ENABLE_UNDEFINED_SANITIZER`: builds in runtime checks for [undefined behavior](https://en.wikipedia.org/wiki/Undefined_behavior) (like null pointer dereferences and signed integer overflows) in Lagom and the SerenityOS userland.
+- `ENABLE_UNDEFINED_SANITIZER`: builds in runtime checks for [undefined behavior](https://en.wikipedia.org/wiki/Undefined_behavior) (like null pointer dereferences and signed integer overflows) in Lagom and Ladybird.
 - `UNDEFINED_BEHAVIOR_IS_FATAL`: makes all undefined behavior sanitizer errors non-recoverable. This option reduces the performance overhead of `ENABLE_UNDEFINED_SANITIZER`.
 - `ENABLE_COMPILER_EXPLORER_BUILD`: Skip building non-library entities in Lagom (this only applies to Lagom).
 - `ENABLE_FUZZERS`: builds [fuzzers](../Meta/Lagom/ReadMe.md#fuzzing) for various parts of the system.

@@ -4,6 +4,8 @@ When contributing to Ladybird, make sure that the changes you wish to make are i
 
 **For your first couple of PRs, start with something small to get familiar with the project and its development processes. Please do not start by adding a large component.**
 
+Read [the Ladybird documentation](https://github.com/LadybirdBrowser/ladybird/blob/master/CONTRIBUTING.md), including the documents in the **Development** section of the `Documentation/README.md` file.
+
 Everyone is welcome to work on the project, and while we have lots of fun, it's a serious kind of fun. :^)
 
 ## Communication
@@ -35,7 +37,6 @@ Pull requests are approved and merged by a group of maintainers. The current gro
 - [Sam Atkins (@AtkinsSJ)](https://github.com/AtkinsSJ)
 - [Tim Flynn (@trflynn89)](https://github.com/trflynn89)
 - [Tim Ledbetter (@tcl3)](https://github.com/tcl3)
-- [Tim Schumacher (@timschumi)](https://github.com/timschumi)
 
 ## Human language policy
 
@@ -56,6 +57,8 @@ Note that this also applies to debug logging and other internal strings, as they
 
 When possible, please include tests when fixing bugs or adding new features.
 
+If changes you’re making have relevant [Web Platform Tests (WPT)](https://wpt.fyi/) tests — especially if the changes cause Ladybird to pass any WPT tests it hadn’t yet been passing — you should consider [importing those tests into your Ladybird clone](https://github.com/LadybirdBrowser/ladybird/blob/master/Documentation/Testing.md#importing-web-platform-tests), and then commit the imported tests along with your code changes.
+
 ## Code submission policy
 
 Nobody is perfect, and sometimes we mess things up. That said, here are some good do's & don'ts to try and stick to:
@@ -70,7 +73,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 * Wrap your commit messages at 72 characters.
 * The first line of the commit message is the subject line, and must have the format "Category: Brief description of what's being changed". The category should be the name of a library, application, service, utility, etc.
   * Examples: `LibMedia`, `WebContent`, `CI`, `AK`, `RequestServer`, `js`
-  * Don't use a category like "`Userland`" or "`Utilities`", except for generic changes that affect a large portion of code within these directories.
+  * Don't use a category like "`Libraries`" or "`Utilities`", except for generic changes that affect a large portion of code within these directories.
   * Don't use specific component names, e.g. C++ class names, as the category either - mention them in the summary instead. E.g. `LibGUI: Brief description of what's being changed in FooWidget` rather than `FooWidget: Brief description of what's being changed`
   * Several categories may be combined with `+`, e.g. `LibJS+LibWeb+Browser: ...`
 * Write the commit message subject line in the imperative mood ("Foo: Change the way dates work", not "Foo: Changed the way dates work").
@@ -83,7 +86,7 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 
 **Don't:**
 
-* Submit code that's incompatible with the project licence (2-clause BSD.)
+* Submit changes that are incompatible with the project licence (2-clause BSD.)
 * Touch anything outside the stated scope of the PR.
 * Iterate excessively on your design across multiple commits.
 * Use weasel-words like "refactor" or "fix" to avoid explaining what's being changed.
@@ -93,6 +96,15 @@ Nobody is perfect, and sometimes we mess things up. That said, here are some goo
 * Attempt large architectural changes until you are familiar with the system and have worked on it for a while.
 * Engage in excessive "feng shui programming" by moving code around without quantifiable benefit.
 * Add jokes or other "funny" things to user-facing parts of the system.
+
+## On usage of AI and LLMs
+
+Usage of AI assistance is usually fine, but you are responsible for making sure the quality of the output is up to the
+standards of the project. Currently, AI-generated output is often too verbose and its quality is subpar compared to what
+most human contributors produce.
+
+Do not use an AI or LLM to generate changes, respond to issues or interact with PRs without holding the output to the
+same standards as human-written content.
 
 ## Pull Request Q&A
 
