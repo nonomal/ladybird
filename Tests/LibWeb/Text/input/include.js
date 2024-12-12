@@ -98,3 +98,30 @@ function promiseTest(f) {
         });
     });
 }
+
+class HTTPTestServer {
+    constructor(baseURL) {
+        this.baseURL = baseURL;
+    }
+    async createEcho(method, path, options) {
+        const result = await fetch(`${this.baseURL}/echo`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ ...options, method, path }),
+        });
+        if (!result.ok) {
+            throw new Error("Error creating echo: " + result.statusText);
+        }
+        return `${this.baseURL}${path}`;
+    }
+    getStaticURL(path) {
+        return `${this.baseURL}/static/${path}`;
+    }
+}
+
+const __httpTestServer = new HTTPTestServer(`http://localhost:${internals.getEchoServerPort()}`);
+function httpTestServer() {
+    return __httpTestServer;
+}

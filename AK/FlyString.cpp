@@ -6,7 +6,7 @@
 
 #include <AK/DeprecatedFlyString.h>
 #include <AK/FlyString.h>
-#include <AK/HashMap.h>
+#include <AK/HashTable.h>
 #include <AK/Singleton.h>
 #include <AK/String.h>
 #include <AK/StringData.h>
@@ -50,6 +50,8 @@ FlyString FlyString::from_utf8_without_validation(ReadonlyBytes string)
 
 FlyString::FlyString(String const& string)
 {
+    ASSERT(!string.is_invalid());
+
     if (string.is_short_string()) {
         m_data = string;
         return;

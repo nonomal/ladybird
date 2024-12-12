@@ -8,7 +8,8 @@
 {
     // default timeout is 10 seconds, test can override if needed
     var settings = {
-        output:true,
+        // Assume we are running tests if the internals object is exposed.
+        output: !(window.internals && window.internals.headless),
         harness_timeout:{
             "normal":150000, // NOTE: Overridden for Ladybird due to slow GCC CI
             "long":300000 // NOTE: Overridden for Ladybird due to slow GCC CI
@@ -4548,7 +4549,7 @@
     AssertionError.prototype = Object.create(Error.prototype);
 
     const get_stack = function() {
-        if (window.internals) {
+        if (window.internals && window.internals.headless) {
             return "(Stack traces disabled in Ladybird test mode)";
         }
 
@@ -4598,6 +4599,12 @@
 
     function make_message(function_name, description, error, substitutions)
     {
+        // NOTE: If we're running in Ladybird test mode, just return "!" as the error string.
+        //       This is to keep tests running quickly. You can open the test in the browser
+        //       to see a more detailed error message.
+        if (window.internals) {
+            return "";
+        }
         for (var p in substitutions) {
             if (substitutions.hasOwnProperty(p)) {
                 substitutions[p] = format_value(substitutions[p]);

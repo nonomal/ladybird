@@ -2,7 +2,7 @@
 
 ## Build Prerequisites
 
-Qt6 development packages, FFmpeg, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
+Qt6 development packages, nasm, additional build tools, and a C++23 capable compiler like g++-13 or clang-17 are required.
 
 CMake 3.25 or newer must be available in $PATH.
 
@@ -15,7 +15,7 @@ CMake 3.25 or newer must be available in $PATH.
 
 <!-- Note: If you change something here, please also change it in the `devcontainer/devcontainer.json` file. -->
 ```bash
-sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libavcodec-dev libavformat-dev libavutil-dev libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
+sudo apt install autoconf autoconf-archive automake build-essential ccache cmake curl fonts-liberation2 git libgl1-mesa-dev nasm ninja-build pkg-config qt6-base-dev qt6-tools-dev-tools qt6-wayland tar unzip zip
 ```
 
 #### CMake 3.25 or newer:
@@ -79,47 +79,60 @@ sudo apt install qt6-multimedia-dev
 ### Arch Linux/Manjaro:
 
 ```
-sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl ffmpeg libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
+sudo pacman -S --needed autoconf-archive automake base-devel ccache cmake curl libgl nasm ninja qt6-base qt6-multimedia qt6-tools qt6-wayland ttf-liberation tar unzip zip
 ```
 
 ### Fedora or derivatives:
 ```
-sudo dnf install autoconf-archive automake ccache cmake curl libavcodec-free-devel libavformat-free-devel liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
+sudo dnf install autoconf-archive automake ccache cmake curl liberation-sans-fonts libglvnd-devel nasm ninja-build perl-FindBin perl-IPC-Cmd perl-lib qt6-qtbase-devel qt6-qtmultimedia-devel qt6-qttools-devel qt6-qtwayland-devel tar unzip zip zlib-ng-compat-static
 ```
 
 ### openSUSE:
 ```
-sudo zypper install autoconf-archive automake ccache cmake curl ffmpeg-7-libavcodec-devel ffmpeg-7-libavformat-devel gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
+sudo zypper install autoconf-archive automake ccache cmake curl gcc13 gcc13-c++ liberation-fonts libglvnd-devel nasm ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel tar unzip zip
 ```
 The build process requires at least python3.7; openSUSE Leap only features Python 3.6 as default, so it is recommendable to install package python311 and create a virtual environment (venv) in this case.
 
 ### Void Linux:
 ```
 sudo xbps-install -Su # (optional) ensure packages are up to date to avoid "Transaction aborted due to unresolved dependencies."
-sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja ffmpeg-devel qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
+sudo xbps-install -S git bash gcc python3 curl cmake zip unzip linux-headers make pkg-config autoconf automake autoconf-archive nasm MesaLib-devel ninja qt6-base-devel qt6-multimedia-devel qt6-tools-devel qt6-wayland-devel
 ```
 
 ### NixOS or with Nix:
 
 > [!NOTE]
-> These steps are out of date, as vcpkg does not work with Nix.
-> Please refer to the nixpkgs package for the most up-to-date build instructions.
->
+> Ladybird's build system uses vcpkg to vendor third-party dependencies, which proves undesirable to use with Nix for [several reasons](https://github.com/LadybirdBrowser/ladybird/issues/371).  
+> As a result, using `ladybird.sh` to compile and run Ladybird will fail. Therefore, it is necessary to use system packages provided by the dev-shell.
+
+To build the project, first enter the shell:
 
 ```console
 nix develop
 
-# With a custom entrypoint, for example your favorite shell
+# With a custom entrypoint, for example, your favorite shell
 nix develop --command bash
+
+# Using nix-shell
+nix-shell UI
+
+# Using nix-shell and a custom shell
+nix-shell UI --command bash
 ```
 
-On NixOS or with Nix using your host `nixpkgs` and the legacy `nix-shell` tool:
-```console
-nix-shell Ladybird
+Then invoke `cmake` directly. For example:
 
-# With a custom entrypoint, for example your favorite shell
-nix-shell --command bash Ladybird
 ```
+cmake -GNinja -BBuild/release
+```
+
+Finally, run `ninja` (or the generator you're using) to start the build:
+
+```
+ninja -CBuild/release
+```
+
+For more information, see [Custom CMake build directory](#custom-cmake-build-directory) and [Running manually](#running-manually).
 
 ### macOS:
 
@@ -127,7 +140,7 @@ Xcode 14 versions before 14.3 might crash while building ladybird. Xcode 14.3 or
 
 ```
 xcode-select --install
-brew install autoconf autoconf-archive automake ccache cmake ffmpeg nasm ninja pkg-config
+brew install autoconf autoconf-archive automake ccache cmake nasm ninja pkg-config
 ```
 
 If you wish to use clang from homebrew instead:
@@ -139,6 +152,11 @@ If you also plan to use the Qt chrome on macOS:
 ```
 brew install qt
 ```
+
+> [!NOTE]
+> It is recommended to add your terminal application (i.e. Terminal.app or iTerm.app) to the system list of developer tools.
+> Doing so will reduce slow startup time of freshly compiled binaries, due to macOS validating the binary on its first run.
+> This can be done in the "Developer Tools" section of the "Privacy & Security" system settings.
 
 ### Windows:
 
@@ -183,7 +201,7 @@ pkgman install cmake cmd:python3 ninja openal_devel qt6_base_devel qt6_multimedi
 ### Android:
 
 On a Unix-like platform, install the prerequisites for that platform and then see the [Android Studio guide](EditorConfiguration/AndroidStudioConfiguration.md).
-Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``Ladybird/Android``
+Or, download a version of Gradle >= 8.0.0, and run the ``gradlew`` program in ``UI/Android``
 
 ## Build steps
 
@@ -249,17 +267,17 @@ Elapsed time to handle skia:x64-linux: 1.6 s
 -- Running vcpkg install - failed
 CMake Error at Toolchain/Tarballs/vcpkg/scripts/buildsystems/vcpkg.cmake:899 (message):
   vcpkg install failed.  See logs for more information:
-  Build/ladybird/vcpkg-manifest-install.log
+  Build/release/vcpkg-manifest-install.log
 Call Stack (most recent call first):
   /usr/share/cmake-3.30/Modules/CMakeDetermineSystem.cmake:146 (include)
   CMakeLists.txt:15 (project)
 
 CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
 -- Configuring incomplete, errors occurred!  See logs for more information:
-  Build/ladybird/vcpkg-manifest-install.log
+  Build/release/vcpkg-manifest-install.log
 ```
 
-If the error is not immediately clear from the terminal output, be sure to check `Build/ladybird/vcpkg-manifest-install.log`
+If the error is not immediately clear from the terminal output, be sure to check the specified `vcpkg-manifest-install.log`.
 for more information.
 
 ### Resource files
@@ -273,10 +291,10 @@ to CMAKE_INSTALL_PREFIX. If it is not, things will break.
 ### Custom CMake build directory
 
 The script Meta/ladybird.sh and the default preset in CMakePresets.json both define a build directory of
-`Build/ladybird`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
+`Build/release`. For distribution purposes, or when building multiple configurations, it may be useful to create a custom
 CMake build directory.
 
-The install rules in Ladybird/cmake/InstallRules.cmake define which binaries and libraries will be
+The install rules in UI/cmake/InstallRules.cmake define which binaries and libraries will be
 installed into the configured CMAKE_PREFIX_PATH or path passed to ``cmake --install``.
 
 Note that when using a custom build directory rather than Meta/ladybird.sh, the user may need to provide
@@ -297,20 +315,20 @@ If you don't want to use the ladybird.sh script to run the application, you can 
 
 To automatically run in gdb:
 ```
-ninja -C Build/ladybird debug-ladybird
+ninja -C Build/release debug-ladybird
 ```
 
 To run without ninja rule on non-macOS systems:
 ```
-./Build/ladybird/bin/Ladybird
+./Build/release/bin/Ladybird
 ```
 
 To run without ninja rule on macOS:
 ```
-open -W --stdout $(tty) --stderr $(tty) ./Build/ladybird/bin/Ladybird.app
+open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app
 
 # Or to launch with arguments:
-open -W --stdout $(tty) --stderr $(tty) ./Build/ladybird/bin/Ladybird.app --args https://ladybird.dev
+open -W --stdout $(tty) --stderr $(tty) ./Build/release/bin/Ladybird.app --args https://ladybird.dev
 ```
 
 ### Experimental GN build
@@ -339,9 +357,9 @@ Simply run the `ladybird.sh` script as normal, and then make sure to codesign th
 
 ```
 ./Meta/ladybird.sh build
- ninja -C build/ladybird apply-debug-entitlements
+ ninja -C Build/release apply-debug-entitlements
  # or
- codesign -s - -v -f --entitlements Meta/debug.plist Build/ladybird/bin/Ladybird.app
+ codesign -s - -v -f --entitlements Meta/debug.plist Build/release/bin/Ladybird.app
 ```
 
 Now you can open the Instruments app and point it to the Ladybird app bundle.
@@ -350,7 +368,7 @@ If you want to use Xcode itself for debugging, you will need to generate an Xcod
 The `ladybird.sh` build script does not know how to generate Xcode projects, so creating the project must be done manually.
 
 ```
-cmake -GXcode -B Build/ladybird
+cmake -GXcode -B Build/release
 ```
 
 After generating an Xcode project into the specified build directory, you can open `ladybird.xcodeproj` in Xcode. The project has a ton of targets, many of which are generated code.
@@ -368,7 +386,7 @@ When running Ladybird, make sure that XDG_RUNTIME_DIR is set, or it will immedia
 doesn't find a writable directory for its sockets.
 
 ```
-CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/ladybird -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
-cmake --build Build/ladybird
-XDG_RUNTIME_DIR=/var/tmp ninja -C Build/ladybird run
+CMAKE_PREFIX_PATH=/usr/lib/qt/6.2/lib/amd64/cmake cmake -GNinja -B Build/release -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+cmake --build Build/release
+XDG_RUNTIME_DIR=/var/tmp ninja -C Build/release run
 ```

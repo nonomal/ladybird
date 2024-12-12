@@ -28,7 +28,7 @@ Clangd has the best support for modern compilers, especially if configured as no
 
 The official clangd extension can be used for C++ comprehension. It is recommended in general, as it is most likely to work on all platforms.
 
-clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/ladybird.
+clangd uses ``compile_commands.json`` files to understand the project. CMake will generate these in Build/release.
 
 Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_commands.json`` file.
 
@@ -38,8 +38,8 @@ Run ``./Meta/ladybird.sh run ladybird`` at least once to generate the ``compile_
 
 ### DSL syntax highlighting
 
-There's a syntax highlighter extension for SerenityOS DSLs called "SerenityOS DSL Syntax Highlight", available [here](https://marketplace.visualstudio.com/items?itemName=kleinesfilmroellchen.serenity-dsl-syntaxhighlight) or [here](https://open-vsx.org/extension/kleinesfilmroellchen/serenity-dsl-syntaxhighlight).
-The extension provides syntax highlighting for LibIPC's IPC files, [Web IDL](https://webidl.spec.whatwg.org/), and LibJS's
+There's a syntax highlighter extension for domain specific language files (.idl, .ipc) called "SerenityOS DSL Syntax Highlight", available [here](https://marketplace.visualstudio.com/items?itemName=kleinesfilmroellchen.serenity-dsl-syntaxhighlight) or [here](https://open-vsx.org/extension/kleinesfilmroellchen/serenity-dsl-syntaxhighlight).
+The extension provides syntax highlighting for these files, [Web IDL](https://webidl.spec.whatwg.org/), and LibJS's
 serialization format (no extension) as output by js with the -d option.
 
 ### Microsoft C/C++ tools
@@ -58,13 +58,11 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "name": "ladybird-gcc",
             "includePath": [
                 "${workspaceFolder}",
-                "${workspaceFolder}/Build/ladybird/",
-                "${workspaceFolder}/Build/ladybird/Userland",
-                "${workspaceFolder}/Build/ladybird/Userland/Libraries",
-                "${workspaceFolder}/Build/ladybird/Userland/Services",
-                "${workspaceFolder}/Userland",
-                "${workspaceFolder}/Userland/Libraries",
-                "${workspaceFolder}/Userland/Services"
+                "${workspaceFolder}/Build/release/",
+                "${workspaceFolder}/Build/release/Libraries",
+                "${workspaceFolder}/Build/release/Services",
+                "${workspaceFolder}/Libraries",
+                "${workspaceFolder}/Services"
             ],
             "defines": [
                 "DEBUG"
@@ -72,7 +70,7 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "cStandard": "c17",
             "cppStandard": "c++23",
             "intelliSenseMode": "linux-gcc-x86",
-            "compileCommands": "Build/ladybird/compile_commands.json",
+            "compileCommands": "Build/release/compile_commands.json",
             "compilerArgs": [
                 "-Wall",
                 "-Wextra",
@@ -81,16 +79,14 @@ following ``c_cpp_properties.json`` to circumvent some errors. Even with the con
             "browse": {
                 "path": [
                     "${workspaceFolder}",
-                    "${workspaceFolder}/Build/ladybird/",
-                    "${workspaceFolder}/Build/ladybird/Userland",
-                    "${workspaceFolder}/Build/ladybird/Userland/Libraries",
-                    "${workspaceFolder}/Build/ladybird/Userland/Services",
-                    "${workspaceFolder}/Userland",
-                    "${workspaceFolder}/Userland/Libraries",
-                    "${workspaceFolder}/Userland/Services"
+                    "${workspaceFolder}/Build/release/",
+                    "${workspaceFolder}/Build/release/Libraries",
+                    "${workspaceFolder}/Build/release/Services",
+                    "${workspaceFolder}/Libraries",
+                    "${workspaceFolder}/Services"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
-                "databaseFilename": "${workspaceFolder}/Build/ladybird/"
+                "databaseFilename": "${workspaceFolder}/Build/release/"
             }
         }
     ],
@@ -165,7 +161,7 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 }
             ],
@@ -199,14 +195,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ],
                     "pattern": [
                         {
@@ -241,14 +237,14 @@ The following three example tasks should suffice in most situations, and allow y
                     "base": "$gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 },
                 {
                     "source": "gcc",
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ],
                     "pattern": [
                         {
@@ -275,7 +271,7 @@ The following three example tasks should suffice in most situations, and allow y
                     ],
                     "fileLocation": [
                         "relative",
-                        "${workspaceFolder}/Build/ladybird"
+                        "${workspaceFolder}/Build/release"
                     ]
                 }
             ]
@@ -285,6 +281,58 @@ The following three example tasks should suffice in most situations, and allow y
 ```
 
 </details>
+
+### Debugging
+#### Mac
+If you want to run the debugger, first place the content below in `.vscode/launch.json` in the root of the project.
+
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Attach to WebContent",
+            "type": "lldb",
+            "request": "attach",
+            "program": "${workspaceFolder}/Build/ladybird-debug/bin/Ladybird.app/Contents/MacOS/WebContent",
+        }
+    ],
+}
+```
+
+then run Ladybird with the debug preset and with the `--debug-process WebContent` flag:
+
+```bash
+CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ BUILD_PRESET=Debug ./Meta/ladybird.sh run ladybird --debug-process WebContent
+```
+
+Running Ladybird in this way will pause execution until a debugger is attached. You can then run the debugger by going to the **Run and Debug** menu and selecting the **Attach to WebContent** configuration.
+
+#### Linux
+For Linux, the `launch.json` will instead be the file below.
+
+```json
+{
+  "version": "2.0.0",
+  "configurations": [
+    {
+      "name": "Attach and debug",
+      "type": "cppdbg",
+      "request": "attach",
+      "program": "${workspaceRoot}/Build/ladybird-debug/libexec/WebContent",
+      "MIMode": "gdb",
+    },
+  ]
+}
+```
+
+Running Ladybird as follows:
+
+```bash
+BUILD_PRESET=Debug Meta/ladybird.sh run ladybird --debug-process WebContent
+```
+
+Then follow the same steps found in the Mac section.
 
 ### License snippet
 

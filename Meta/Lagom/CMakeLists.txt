@@ -174,14 +174,13 @@ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${LINKER_FLAGS}")
 
 configure_file(../../AK/Debug.h.in AK/Debug.h @ONLY)
 
-include_directories(../../)
-include_directories(../../Userland/)
-include_directories(../../Userland/Libraries/)
-include_directories(../../Userland/Services)
+include_directories(../..)
+include_directories(../../Libraries)
+include_directories(../../Services)
 include_directories(${CMAKE_BINARY_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/Userland/Libraries)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/Userland/Services)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/Libraries)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/Services)
 
 # install rules, think about moving to its own helper cmake file
 include(CMakePackageConfigHelpers)
@@ -233,15 +232,15 @@ function(lagom_lib target_name fs_name)
     if (ENABLE_INSTALL_HEADERS)
         target_include_directories(${target_name} INTERFACE
             $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Libraries>
-            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Userland/Services>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Libraries>
+            $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/Services>
         )
     endif()
     add_lagom_library_install_rules(${target_name} ALIAS_NAME ${library})
     if (ENABLE_INSTALL_HEADERS)
         # FIXME: Move this to serenity_install_headers
         install(
-            DIRECTORY "${SERENITY_PROJECT_ROOT}/Userland/Libraries/Lib${library}"
+            DIRECTORY "${SERENITY_PROJECT_ROOT}/Libraries/Lib${library}"
             COMPONENT Lagom_Development
             DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
             FILES_MATCHING PATTERN "*.h"
@@ -335,22 +334,22 @@ install(TARGETS LibC LibCrypt NoCoverage EXPORT LagomTargets)
 add_serenity_subdirectory(AK)
 
 # LibCoreMinimal
-add_serenity_subdirectory(Userland/Libraries/LibCore)
+add_serenity_subdirectory(Libraries/LibCore)
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
     target_link_libraries(LibCoreMinimal PRIVATE rt)
 endif()
 
 # LibMain
-add_serenity_subdirectory(Userland/Libraries/LibMain)
+add_serenity_subdirectory(Libraries/LibMain)
 
 # LibFileSystem
 # This is needed even if Lagom is not enabled because it is depended upon by code generators.
-add_serenity_subdirectory(Userland/Libraries/LibFileSystem)
+add_serenity_subdirectory(Libraries/LibFileSystem)
 
 # LibIDL
 # This is used by the BindingsGenerator so needs to always be built.
-add_serenity_subdirectory(Userland/Libraries/LibIDL)
+add_serenity_subdirectory(Libraries/LibIDL)
 
 # Manually install AK headers
 if (ENABLE_INSTALL_HEADERS)
@@ -379,10 +378,11 @@ endif()
 
 # Lagom Libraries
 set(lagom_standard_libraries
-    Archive
     Compress
     Crypto
     Diff
+    DNS
+    GC
     HTTP
     IPC
     JS
@@ -425,15 +425,15 @@ if (HAIKU)
     target_link_libraries(LibCore PRIVATE network)
 endif()
 
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestClient.ipc Userland/Services/RequestServer/RequestClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/RequestServer/RequestServer.ipc Userland/Services/RequestServer/RequestServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentServer.ipc Userland/Services/WebContent/WebContentServerEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebContentClient.ipc Userland/Services/WebContent/WebContentClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverClient.ipc Userland/Services/WebContent/WebDriverClientEndpoint.h)
-compile_ipc(${SERENITY_PROJECT_ROOT}/Userland/Services/WebContent/WebDriverServer.ipc Userland/Services/WebContent/WebDriverServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestClient.ipc Services/RequestServer/RequestClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/RequestServer/RequestServer.ipc Services/RequestServer/RequestServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentServer.ipc Services/WebContent/WebContentServerEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebContentClient.ipc Services/WebContent/WebContentClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverClient.ipc Services/WebContent/WebDriverClientEndpoint.h)
+compile_ipc(${SERENITY_PROJECT_ROOT}/Services/WebContent/WebDriverServer.ipc Services/WebContent/WebDriverServerEndpoint.h)
 
 foreach(lib IN LISTS lagom_standard_libraries)
-    add_serenity_subdirectory("Userland/Libraries/Lib${lib}")
+    add_serenity_subdirectory("Libraries/Lib${lib}")
 endforeach()
 
 if (ENABLE_FUZZERS)
@@ -446,21 +446,18 @@ if (ENABLE_FUZZERS OR ENABLE_COMPILER_EXPLORER_BUILD OR ANDROID OR IOS)
 endif()
 
 # Lagom Utilities
-lagom_utility(abench SOURCES ../../Userland/Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+lagom_utility(abench SOURCES ../../Utilities/abench.cpp LIBS LibMain LibFileSystem LibMedia)
+
+lagom_utility(dns SOURCES ../../Utilities/dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
 if (ENABLE_GUI_TARGETS)
-    lagom_utility(animation SOURCES ../../Userland/Utilities/animation.cpp LIBS LibGfx LibMain)
-    lagom_utility(icc SOURCES ../../Userland/Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
-    lagom_utility(image SOURCES ../../Userland/Utilities/image.cpp LIBS LibGfx LibMain)
+    lagom_utility(animation SOURCES ../../Utilities/animation.cpp LIBS LibGfx LibMain)
+    lagom_utility(icc SOURCES ../../Utilities/icc.cpp LIBS LibGfx LibMain LibURL)
+    lagom_utility(image SOURCES ../../Utilities/image.cpp LIBS LibGfx LibMain)
 endif()
 
-lagom_utility(js SOURCES ../../Userland/Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec Threads::Threads)
-
-lagom_utility(gzip SOURCES ../../Userland/Utilities/gzip.cpp LIBS LibCompress LibMain)
-lagom_utility(lzcat SOURCES ../../Userland/Utilities/lzcat.cpp LIBS LibCompress LibMain)
-
-lagom_utility(tar SOURCES ../../Userland/Utilities/tar.cpp LIBS LibArchive LibCompress LibFileSystem LibMain)
-lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem)
+lagom_utility(js SOURCES ../../Utilities/js.cpp LIBS LibCrypto LibJS LibLine LibUnicode LibMain LibTextCodec LibGC Threads::Threads)
+lagom_utility(test262-runner SOURCES ../../Tests/LibJS/test262-runner.cpp LIBS LibJS LibFileSystem LibGC)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(CheckCSourceCompiles)
@@ -479,14 +476,13 @@ if (ASSERT_FAIL_HAS_INT OR EMSCRIPTEN)
     target_compile_definitions(test262-runner PRIVATE ASSERT_FAIL_HAS_INT)
 endif()
 
-lagom_utility(wasm SOURCES ../../Userland/Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
-lagom_utility(xml SOURCES ../../Userland/Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
-lagom_utility(xzcat SOURCES ../../Userland/Utilities/xzcat.cpp LIBS LibCompress LibMain)
+lagom_utility(wasm SOURCES ../../Utilities/wasm.cpp LIBS LibFileSystem LibWasm LibLine LibMain LibJS)
+lagom_utility(xml SOURCES ../../Utilities/xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 
 include(CTest)
 if (BUILD_TESTING)
     # LibTest
-    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Userland/Libraries/LibTest/*.cpp")
+    file(GLOB LIBTEST_SOURCES CONFIGURE_DEPENDS "../../Libraries/LibTest/*.cpp")
     list(FILTER LIBTEST_SOURCES EXCLUDE REGEX ".*Main.cpp$")
     add_library(
         LibTest
@@ -497,7 +493,7 @@ if (BUILD_TESTING)
     add_library(
         LibTestMain
         OBJECT
-        "${SERENITY_PROJECT_ROOT}/Userland/Libraries/LibTest/TestMain.cpp"
+        "${SERENITY_PROJECT_ROOT}/Libraries/LibTest/TestMain.cpp"
     )
     target_link_libraries(LibTest PUBLIC GenericClangPlugin)
     target_link_libraries(LibTestMain PUBLIC GenericClangPlugin)
@@ -507,6 +503,7 @@ if (BUILD_TESTING)
         AK
         LibCrypto
         LibCompress
+        LibGC
         LibTest
         LibTextCodec
         LibThreading
@@ -554,8 +551,8 @@ if (BUILD_TESTING)
     # test-js
     add_executable(test-js
         ../../Tests/LibJS/test-js.cpp
-        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS)
+        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+    target_link_libraries(test-js AK LibCore LibFileSystem LibTest LibJS LibGC)
     add_test(
         NAME JS
         COMMAND test-js --show-progress=false
@@ -569,24 +566,19 @@ if (BUILD_TESTING)
     # test-wasm
     add_executable(test-wasm
         ../../Tests/LibWasm/test-wasm.cpp
-        ../../Userland/Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
-    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto)
+        ../../Libraries/LibTest/JavaScriptTestRunnerMain.cpp)
+    target_link_libraries(test-wasm AK LibCore LibFileSystem LibTest LibWasm LibJS LibCrypto LibGC)
     set(wasm_test_root "${SERENITY_PROJECT_ROOT}")
     if (INCLUDE_WASM_SPEC_TESTS)
        set(wasm_test_root "${CMAKE_CURRENT_BINARY_DIR}")
     endif()
     add_test(
         NAME Wasm
-        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Userland/Libraries/LibWasm/Tests"
+        COMMAND test-wasm --show-progress=false "${wasm_test_root}/Libraries/LibWasm/Tests"
     )
 endif()
 
-# FIXME: When we are using CMake >= 3.21, the library installations can be replaced with RUNTIME_DEPENDENCIES.
-#        https://cmake.org/cmake/help/latest/command/install.html
-include(get_linked_lagom_libraries.cmake)
-get_linked_lagom_libraries(js js_libraries)
-
-install(TARGETS js ${js_libraries} COMPONENT js)
+install(TARGETS js COMPONENT js)
 
 set(CPACK_GENERATOR "TGZ")
 set(CPACK_STRIP_FILES TRUE)

@@ -56,7 +56,7 @@ endif()
 if (MSVC)
     add_cxx_compile_options(/W4)
     # disable exceptions
-    add_cxx_compile_options(/EHsc)
+    add_cxx_compile_options(/EHs-)
     # disable floating-point expression contraction
     add_cxx_compile_options(/fp:precise)
 else()
@@ -68,7 +68,9 @@ endif()
 add_cxx_compile_options(-Wcast-qual)
 add_cxx_compile_options(-Wformat=2)
 add_cxx_compile_options(-Wimplicit-fallthrough)
+add_cxx_compile_options(-Wlogical-op)
 add_cxx_compile_options(-Wmissing-declarations)
+add_cxx_compile_options(-Wmissing-field-initializers)
 add_cxx_compile_options(-Wsuggest-override)
 
 add_cxx_compile_options(-Wno-invalid-offsetof)

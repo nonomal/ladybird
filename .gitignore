@@ -28,6 +28,11 @@ output/
 .exrc
 .helix/
 
+# Environments
+.venv/
+.venv*/
+venv*/
+
 # Gradle/AndroidStudio
 .gradle/
 .cxx/
@@ -35,12 +40,16 @@ local.properties
 # We can't build from cmd.exe anyway
 gradlew.bat
 
-Userland/Libraries/LibWasm/Tests/Fixtures/SpecTests
-Userland/Libraries/LibWasm/Tests/Spec
+Libraries/LibWasm/Tests/Fixtures/SpecTests
+Libraries/LibWasm/Tests/Spec
 
 Tests/LibWeb/WPT/wpt
 Tests/LibWeb/WPT/metadata
 Tests/LibWeb/WPT/MANIFEST.json
+
+# HTTP Test server artifacts from ./Tests/LibWeb/Fixtures/http-test-server.py
+http-test-server.pid.txt
+http-test-server.log
 
 Meta/CMake/vcpkg/user-variables.cmake
 

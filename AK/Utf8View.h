@@ -10,6 +10,7 @@
 #include <AK/ByteString.h>
 #include <AK/Debug.h>
 #include <AK/Format.h>
+#include <AK/Function.h>
 #include <AK/StringView.h>
 #include <AK/Types.h>
 
@@ -19,6 +20,7 @@ class Utf8View;
 
 class Utf8CodePointIterator {
     friend class Utf8View;
+    friend class ByteString;
 
 public:
     Utf8CodePointIterator() = default;
@@ -138,6 +140,52 @@ public:
 
     bool validate(size_t& valid_bytes, AllowSurrogates allow_surrogates = AllowSurrogates::Yes) const;
 
+    template<typename Callback>
+    auto for_each_split_view(Function<bool(u32)> splitter, SplitBehavior split_behavior, Callback callback) const
+    {
+        bool keep_empty = has_flag(split_behavior, SplitBehavior::KeepEmpty);
+        bool keep_trailing_separator = has_flag(split_behavior, SplitBehavior::KeepTrailingSeparator);
+
+        auto start_offset = 0u;
+        auto offset = 0u;
+
+        auto run_callback = [&]() {
+            auto length = offset - start_offset;
+
+            if (length == 0 && !keep_empty)
+                return;
+
+            auto substring = unicode_substring_view(start_offset, length);
+
+            // Reject splitter-only entries if we're not keeping empty results
+            if (keep_trailing_separator && !keep_empty && length == 1 && splitter(*substring.begin()))
+                return;
+
+            callback(substring);
+        };
+
+        auto iterator = begin();
+        while (iterator != end()) {
+            if (splitter(*iterator)) {
+                if (keep_trailing_separator)
+                    ++offset;
+
+                run_callback();
+
+                if (!keep_trailing_separator)
+                    ++offset;
+
+                start_offset = offset;
+                ++iterator;
+                continue;
+            }
+
+            ++offset;
+            ++iterator;
+        }
+        run_callback();
+    }
+
 private:
     friend class Utf8CodePointIterator;
 
@@ -182,40 +230,6 @@ private:
     StringView m_string;
     mutable size_t m_length { 0 };
     mutable bool m_have_length { false };
-};
-
-class DeprecatedStringCodePointIterator {
-public:
-    Optional<u32> next()
-    {
-        if (m_it.done())
-            return {};
-        auto value = *m_it;
-        ++m_it;
-        return value;
-    }
-
-    [[nodiscard]] Optional<u32> peek() const
-    {
-        if (m_it.done())
-            return {};
-        return *m_it;
-    }
-
-    [[nodiscard]] size_t byte_offset() const
-    {
-        return Utf8View(m_string).byte_offset_of(m_it);
-    }
-
-    DeprecatedStringCodePointIterator(ByteString string)
-        : m_string(move(string))
-        , m_it(Utf8View(m_string).begin())
-    {
-    }
-
-private:
-    ByteString m_string;
-    Utf8CodePointIterator m_it;
 };
 
 template<>
@@ -312,7 +326,6 @@ inline u32 Utf8CodePointIterator::operator*() const
 }
 
 #if USING_AK_GLOBALLY
-using AK::DeprecatedStringCodePointIterator;
 using AK::Utf8CodePointIterator;
 using AK::Utf8View;
 #endif

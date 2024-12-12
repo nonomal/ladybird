@@ -32,6 +32,7 @@ ladybird_git_hash() {
 
 LADYBIRD_BINARY=${LADYBIRD_BINARY:-"$(default_binary_path)/Ladybird"}
 WEBDRIVER_BINARY=${WEBDRIVER_BINARY:-"$(default_binary_path)/WebDriver"}
+HEADLESS_BROWSER_BINARY=${HEADLESS_BROWSER_BINARY:-"$(default_binary_path)/headless-browser"}
 WPT_PROCESSES=${WPT_PROCESSES:-$(get_number_of_processing_units)}
 WPT_CERTIFICATES=(
   "tools/certs/cacert.pem"
@@ -57,6 +58,10 @@ print_help() {
                       Run the Web Platform Tests.
       compare:    $NAME compare [OPTIONS...] LOG_FILE [TESTS...]
                       Run the Web Platform Tests comparing the results to the expectations in LOG_FILE.
+      import:     $NAME import [PATHS...]
+                      Fetch the given test file(s) from https://wpt.live/ and create an in-tree test and expectation files.
+      list-tests: $NAME list-tests [PATHS..]
+                      List the tests in the given PATHS.
 
     Examples:
       $NAME update
@@ -71,6 +76,10 @@ print_help() {
           Run all of the Web Platform Tests comparing the results to the expectations in before.log.
       $NAME compare --log results.log expectations.log css/CSS2
           Run the Web Platform Tests in the 'css/CSS2' directory, comparing the results to the expectations in expectations.log; output the results to results.log.
+      $NAME import html/dom/aria-attribute-reflection.html
+          Import the test from https://wpt.live/html/dom/aria-attribute-reflection.html into the Ladybird test suite.
+      $NAME list-tests css/CSS2 dom
+          Show a list of all tests in the 'css/CSS2' and 'dom' directories.
 EOF
 }
 
@@ -98,12 +107,12 @@ set_logging_flags()
     WPT_ARGS+=( "${log_type}=${log_name}" )
 }
 
+headless=1
 ARG=$1
-while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
+while [[ "$ARG" =~ ^(--show-window|(--log(-(raw|unittest|xunit|html|mach|tbpl|grouped|chromium|wptreport|wptscreenshot))?))$ ]]; do
     case "$ARG" in
-        --headless)
-            LADYBIRD_BINARY="$(default_binary_path)/headless-browser"
-            WPT_ARGS+=( "--webdriver-arg=--headless" )
+        --show-window)
+            headless=0
             ;;
         --log)
             set_logging_flags "--log-raw" "${2}"
@@ -119,8 +128,23 @@ while [[ "$ARG" =~ ^(--headless|(--log(-(raw|unittest|xunit|html|mach|tbpl|group
     ARG=$1
 done
 
-WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
+if [ $headless -eq 1 ]; then
+    WPT_ARGS+=( "--binary=${HEADLESS_BROWSER_BINARY}" )
+    WPT_ARGS+=( "--webdriver-arg=--headless" )
+else
+    WPT_ARGS+=( "--binary=${LADYBIRD_BINARY}" )
+fi
+
 TEST_LIST=( "$@" )
+
+for i in "${!TEST_LIST[@]}"; do
+    item="${TEST_LIST[i]}"
+    item="${item#"$WPT_SOURCE_DIR"/}"
+    item="${item#*Tests/LibWeb/WPT/wpt/}"
+    item="${item#http://wpt.live/}"
+    item="${item#https://wpt.live/}"
+    TEST_LIST[i]="$item"
+done
 
 exit_if_running_as_root "Do not run WPT.sh as root"
 
@@ -159,8 +183,8 @@ execute_wpt() {
             fi
             WPT_ARGS+=( "--webdriver-arg=--certificate=${certificate_path}" )
         done
-        echo QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
-        QT_QPA_PLATFORM="offscreen" LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        echo LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
+        LADYBIRD_GIT_VERSION="$(ladybird_git_hash)" ./wpt run "${WPT_ARGS[@]}" ladybird "${TEST_LIST[@]}"
     popd > /dev/null
 }
 
@@ -179,6 +203,49 @@ serve_wpt()
     popd > /dev/null
 }
 
+list_tests_wpt()
+{
+    ensure_wpt_repository
+
+    pushd "${WPT_SOURCE_DIR}" > /dev/null
+        ./wpt run --list-tests ladybird "${TEST_LIST[@]}"
+    popd > /dev/null
+}
+
+import_wpt()
+{
+    for i in "${!INPUT_PATHS[@]}"; do
+        item="${INPUT_PATHS[i]}"
+        item="${item#http://wpt.live/}"
+        item="${item#https://wpt.live/}"
+        INPUT_PATHS[i]="$item"
+    done
+
+    TESTS=()
+    while IFS= read -r test_file; do
+        TESTS+=("$test_file")
+    done < <(
+        "${ARG0}" list-tests "${INPUT_PATHS[@]}"
+    )
+    if [ "${#TESTS[@]}" -eq 0 ]; then
+        echo "No tests found for the given paths"
+        exit 1
+    fi
+
+    pushd "${LADYBIRD_SOURCE_DIR}" > /dev/null
+        ./Meta/ladybird.sh build headless-browser
+        set +e
+        for path in "${TESTS[@]}"; do
+            echo "Importing test from ${path}"
+            if [ ! "$(./Meta/import-wpt-test.py https://wpt.live/"${path}")" ]; then
+                continue
+            fi
+            "${HEADLESS_BROWSER_BINARY}" --run-tests ./Tests/LibWeb --rebaseline -f "$path"
+        done
+        set -e
+    popd > /dev/null
+}
+
 compare_wpt() {
     ensure_wpt_repository
     METADATA_DIR=$(mktemp -d)
@@ -191,7 +258,7 @@ compare_wpt() {
     rm -rf "${METADATA_DIR}"
 }
 
-if [[ "$CMD" =~ ^(update|run|serve|compare)$ ]]; then
+if [[ "$CMD" =~ ^(update|run|serve|compare|import|list-tests)$ ]]; then
     case "$CMD" in
         update)
             update_wpt
@@ -202,6 +269,14 @@ if [[ "$CMD" =~ ^(update|run|serve|compare)$ ]]; then
         serve)
             serve_wpt
             ;;
+        import)
+            if [ $# -eq 0 ]; then
+                usage
+            fi
+            INPUT_PATHS=( "$@" )
+            import_wpt
+            ;;
+
         compare)
             INPUT_LOG_NAME="$(pwd -P)/$1"
             if [ ! -f "$INPUT_LOG_NAME" ]; then
@@ -210,6 +285,9 @@ if [[ "$CMD" =~ ^(update|run|serve|compare)$ ]]; then
             fi
             shift
             compare_wpt
+            ;;
+        list-tests)
+            list_tests_wpt
             ;;
     esac
 else

@@ -1,6 +1,14 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+    paths-ignore:
+      - 'Documentation/**'
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - 'Documentation/**'
+      - '*.md'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || format('{0}-{1}', github.ref, github.run_number) }}
@@ -27,7 +35,7 @@ jobs:
             clang_plugins: true
 
           - os_name: 'macOS'
-            os: macos-14
+            os: macos-15
             fuzzer: 'NO_FUZZ'
             toolchain: 'Clang'
             clang_plugins: false

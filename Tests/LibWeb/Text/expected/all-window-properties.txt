@@ -30,6 +30,7 @@ BiquadFilterNode
 Blob
 Boolean
 BroadcastChannel
+BufferedChangeEvent
 ByteLengthQueuingStrategy
 CDATASection
 CSSAnimation
@@ -55,6 +56,7 @@ CSSTransition
 CanvasGradient
 CanvasPattern
 CanvasRenderingContext2D
+ChannelMergerNode
 CharacterData
 Clipboard
 ClipboardEvent
@@ -62,6 +64,7 @@ CloseEvent
 CloseWatcher
 Comment
 CompositionEvent
+CompressionStream
 CountQueuingStrategy
 Crypto
 CryptoKey
@@ -86,6 +89,7 @@ DataTransferItem
 DataTransferItemList
 DataView
 Date
+DecompressionStream
 DisposableStack
 Document
 DocumentFragment
@@ -106,6 +110,7 @@ FileList
 FileReader
 FileSystemEntry
 FinalizationRegistry
+Float16Array
 Float32Array
 Float64Array
 FocusEvent
@@ -194,9 +199,16 @@ HTMLVideoElement
 HashChangeEvent
 Headers
 History
+IDBCursor
+IDBDatabase
 IDBFactory
+IDBIndex
+IDBKeyRange
+IDBObjectStore
 IDBOpenDBRequest
 IDBRequest
+IDBTransaction
+IDBVersionChangeEvent
 IdleDeadline
 Image
 ImageBitmap
@@ -212,6 +224,8 @@ Iterator
 KeyboardEvent
 KeyframeEffect
 Location
+ManagedMediaSource
+ManagedSourceBuffer
 Map
 MathMLElement
 MediaCapabilities
@@ -219,6 +233,8 @@ MediaError
 MediaList
 MediaQueryList
 MediaQueryListEvent
+MediaSource
+MediaSourceHandle
 MessageChannel
 MessageEvent
 MessagePort
@@ -335,6 +351,8 @@ Set
 ShadowRealm
 ShadowRoot
 SharedArrayBuffer
+SourceBuffer
+SourceBufferList
 StaticRange
 Storage
 StorageManager
@@ -380,8 +398,24 @@ VisualViewport
 WeakMap
 WeakRef
 WeakSet
+WebGL2RenderingContext
+WebGLActiveInfo
+WebGLBuffer
 WebGLContextEvent
+WebGLFramebuffer
+WebGLObject
+WebGLProgram
+WebGLQuery
+WebGLRenderbuffer
 WebGLRenderingContext
+WebGLSampler
+WebGLShader
+WebGLShaderPrecisionFormat
+WebGLSync
+WebGLTexture
+WebGLTransformFeedback
+WebGLUniformLocation
+WebGLVertexArrayObject
 WebKitCSSMatrix
 WebSocket
 WheelEvent
@@ -399,6 +433,7 @@ __finishTest
 __preventMultipleTestFunctions
 animationFrame
 asyncTest
+httpTestServer
 printElement
 println
 promiseTest

@@ -350,6 +350,8 @@ template<>
 inline constexpr bool __IsFloatingPoint<double> = true;
 template<>
 inline constexpr bool __IsFloatingPoint<long double> = true;
+template<>
+inline constexpr bool __IsFloatingPoint<f16> = true;
 
 template<typename T>
 inline constexpr bool IsFloatingPoint = __IsFloatingPoint<RemoveCV<T>>;
@@ -453,6 +455,19 @@ using AssertSize = __AssertSize<T, ExpectedSize, sizeof(T)>;
 
 template<typename T>
 inline constexpr bool IsPOD = __is_pod(T);
+
+template<template<typename...> class Base, typename Derived>
+struct __IsTemplateBaseOf {
+    template<typename... Args>
+    static TrueType test(Base<Args...> const*);
+
+    static FalseType test(...);
+
+    using type = decltype(test(declval<Derived*>()));
+};
+
+template<template<typename...> class Base, typename Derived>
+inline constexpr bool IsTemplateBaseOf = __IsTemplateBaseOf<Base, Derived>::type::value;
 
 template<typename T>
 inline constexpr bool IsTrivial = __is_trivial(T);
@@ -652,6 +667,7 @@ using AK::Detail::IsSame;
 using AK::Detail::IsSameIgnoringCV;
 using AK::Detail::IsSigned;
 using AK::Detail::IsSpecializationOf;
+using AK::Detail::IsTemplateBaseOf;
 using AK::Detail::IsTrivial;
 using AK::Detail::IsTriviallyAssignable;
 using AK::Detail::IsTriviallyConstructible;

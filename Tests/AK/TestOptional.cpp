@@ -8,8 +8,43 @@
 #include <LibTest/TestCase.h>
 
 #include <AK/ByteString.h>
+#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/String.h>
 #include <AK/Vector.h>
+
+class NonCopyable {
+    AK_MAKE_NONCOPYABLE(NonCopyable);
+    AK_MAKE_DEFAULT_MOVABLE(NonCopyable);
+
+public:
+    NonCopyable() { }
+    ~NonCopyable() = default;
+
+    int x { 13 };
+};
+
+class NonTriviallyCopyable {
+    AK_MAKE_DEFAULT_COPYABLE(NonTriviallyCopyable);
+    AK_MAKE_DEFAULT_MOVABLE(NonTriviallyCopyable);
+
+public:
+    NonTriviallyCopyable() = default;
+    ~NonTriviallyCopyable() = default;
+
+    ByteString x { "13" };
+};
+
+class TriviallyCopyable {
+    AK_MAKE_DEFAULT_COPYABLE(TriviallyCopyable);
+    AK_MAKE_DEFAULT_MOVABLE(TriviallyCopyable);
+
+public:
+    TriviallyCopyable() = default;
+    ~TriviallyCopyable() = default;
+
+    int x { 13 };
+};
 
 TEST_CASE(basic_optional)
 {
@@ -37,23 +72,12 @@ TEST_CASE(move_optional)
 
 TEST_CASE(optional_rvalue_ref_qualified_getters)
 {
-    struct DontCopyMe {
-        DontCopyMe() { }
-        ~DontCopyMe() = default;
-        DontCopyMe(DontCopyMe&&) = default;
-        DontCopyMe& operator=(DontCopyMe&&) = default;
-        DontCopyMe(DontCopyMe const&) = delete;
-        DontCopyMe& operator=(DontCopyMe const&) = delete;
-
-        int x { 13 };
-    };
-
-    auto make_an_optional = []() -> Optional<DontCopyMe> {
-        return DontCopyMe {};
+    auto make_an_optional = []() -> Optional<NonCopyable> {
+        return NonCopyable {};
     };
 
     EXPECT_EQ(make_an_optional().value().x, 13);
-    EXPECT_EQ(make_an_optional().value_or(DontCopyMe {}).x, 13);
+    EXPECT_EQ(make_an_optional().value_or(NonCopyable {}).x, 13);
 }
 
 TEST_CASE(optional_leak_1)
@@ -245,7 +269,6 @@ TEST_CASE(move_optional_reference)
     y = move(x);
     EXPECT_EQ(y.has_value(), true);
     EXPECT_EQ(y.value(), 3);
-    EXPECT_EQ(x.has_value(), false);
 }
 
 TEST_CASE(short_notation_reference)
@@ -268,4 +291,243 @@ TEST_CASE(comparison_reference)
     EXPECT_NE(opt0, opt1);
     EXPECT_EQ(opt1, opt2);
     EXPECT_NE(opt1, opt3);
+}
+
+template<typename To, typename From>
+struct CheckAssignments;
+
+template<typename To, typename From>
+requires(requires { declval<To>() = declval<From>(); })
+struct CheckAssignments<To, From> {
+    static constexpr bool allowed = true;
+};
+
+template<typename To, typename From>
+requires(!requires { declval<To>() = declval<From>(); })
+struct CheckAssignments<To, From> {
+    static constexpr bool allowed = false;
+};
+
+static_assert(CheckAssignments<Optional<int>, int>::allowed);
+static_assert(!CheckAssignments<Optional<int*>, double*>::allowed);
+
+static_assert(CheckAssignments<Optional<int&>, int&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int const&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int&&>::allowed);
+static_assert(!CheckAssignments<Optional<int&>, int const&&>::allowed);
+
+static_assert(CheckAssignments<Optional<int const&>, int&>::allowed);
+static_assert(CheckAssignments<Optional<int const&>, int const&>::allowed);
+static_assert(CheckAssignments<Optional<int const&>, int&&>::allowed);       // Lifetime extension
+static_assert(CheckAssignments<Optional<int const&>, int const&&>::allowed); // Lifetime extension
+
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable&>::allowed);
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable const&>::allowed);
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable&&>::allowed);       // Lifetime extension
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable const&&>::allowed); // Lifetime extension
+
+static_assert(CheckAssignments<Optional<TriviallyCopyable const&>, TriviallyCopyable>::allowed);
+static_assert(CheckAssignments<Optional<TriviallyCopyable const&>, TriviallyCopyable const&>::allowed);
+static_assert(CheckAssignments<Optional<TriviallyCopyable const&>, Optional<TriviallyCopyable>>::allowed);
+static_assert(CheckAssignments<Optional<TriviallyCopyable const&>, Optional<TriviallyCopyable const&>>::allowed);
+static_assert(CheckAssignments<Optional<TriviallyCopyable>, Optional<TriviallyCopyable const&>>::allowed);
+
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable>::allowed);
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, NonTriviallyCopyable const&>::allowed);
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, Optional<NonTriviallyCopyable>>::allowed);
+static_assert(CheckAssignments<Optional<NonTriviallyCopyable const&>, Optional<NonTriviallyCopyable const&>>::allowed);
+static_assert(!CheckAssignments<Optional<NonTriviallyCopyable>, Optional<NonTriviallyCopyable const&>>::allowed);
+
+TEST_CASE(nontrivially_copyable_assignment)
+{
+    {
+        TriviallyCopyable x {};
+        Optional<TriviallyCopyable const&> y = x;
+        Optional<TriviallyCopyable> z = y; // Can copy implicitly
+        EXPECT_EQ(z->x, 13);
+    }
+
+    {
+        NonTriviallyCopyable x {};
+        Optional<NonTriviallyCopyable const&> y = x;
+        Optional<NonTriviallyCopyable> z = y.copy(); // Have to copy explicitly
+        EXPECT_EQ(z->x, "13");
+    }
+
+    {
+        NonTriviallyCopyable x {};
+        Optional<NonTriviallyCopyable const&> y = x;
+        Optional<NonTriviallyCopyable> z = Optional<NonTriviallyCopyable>(y); // Explicit copy constructor is still defined
+        EXPECT_EQ(z->x, "13");
+    }
+}
+
+TEST_CASE(string_specialization)
+{
+    EXPECT_EQ(sizeof(Optional<String>), sizeof(String));
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo = "initial_value"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "initial_value"sv);
+
+        foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        String bar = "long_enough_to_be_allocated"_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        Optional<String> bar = "long_enough_to_be_allocated"_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+        EXPECT(bar.has_value());
+        EXPECT_EQ(bar.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = Optional<String> { "long_enough_to_be_allocated"_string };
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo = "long_enough_to_be_allocated"_string;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<String> foo;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_string), "fallback_value"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<String> { "long_enough_to_be_allocated"_string }).value_or("fallback_value"_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<String> {}).value_or("fallback_value"_string), "fallback_value"sv);
+    }
+}
+
+TEST_CASE(flystring_specialization)
+{
+    EXPECT_EQ(sizeof(Optional<FlyString>), sizeof(FlyString));
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo = "initial_value"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "initial_value"sv);
+
+        foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        FlyString bar = "long_enough_to_be_allocated"_fly_string;
+        foo = bar;
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        Optional<FlyString> bar = "long_enough_to_be_allocated"_fly_string;
+        foo = bar;
+
+        EXPECT(bar.has_value());
+        EXPECT_EQ(bar.value(), "long_enough_to_be_allocated"sv);
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT(!foo.has_value());
+
+        foo = Optional<FlyString> { "long_enough_to_be_allocated"_fly_string };
+
+        EXPECT(foo.has_value());
+        EXPECT_EQ(foo.value(), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo = "long_enough_to_be_allocated"_fly_string;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_fly_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        Optional<FlyString> foo;
+
+        EXPECT_EQ(foo.value_or("fallback_value"_fly_string), "fallback_value"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<FlyString> { "long_enough_to_be_allocated"_fly_string }).value_or("fallback_value"_fly_string), "long_enough_to_be_allocated"sv);
+    }
+
+    {
+        EXPECT_EQ((Optional<FlyString> {}).value_or("fallback_value"_fly_string), "fallback_value"sv);
+    }
 }

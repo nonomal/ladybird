@@ -1,6 +1,10 @@
 {
-  "builtin-baseline": "2960d7d80e8d09c84ae8abf15c12196c2ca7d39a",
+  "builtin-baseline": "b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c",
   "dependencies": [
+    {
+      "name": "angle",
+      "platform": "osx"
+    },
     {
       "name": "curl",
       "features": [
@@ -9,10 +13,45 @@
       ]
     },
     {
+      "name": "dirent",
+      "platform": "windows"
+    },
+    {
+      "name": "ffmpeg",
+      "platform": "!android",
+      "features": [
+        "avcodec",
+        "avformat",
+        "dav1d",
+        "openh264",
+        "opus",
+        "webp",
+        "theora",
+        "vorbis",
+        "vpx",
+        "zlib"
+      ]
+    },
+    {
       "name": "fontconfig",
       "platform": "linux | freebsd | openbsd | osx | windows"
     },
-    "harfbuzz",
+    {
+      "name": "harfbuzz",
+      "platform": "linux | freebsd | openbsd | windows",
+      "features": [
+        "freetype",
+        "icu"
+      ]
+    },
+    {
+      "name": "harfbuzz",
+      "platform": "osx",
+      "features": [
+        "coretext",
+        "icu"
+      ]
+    },
     "icu",
     "libjpeg-turbo",
     "libjxl",
@@ -22,6 +61,7 @@
         "apng"
       ]
     },
+    "libproxy",
     {
       "name": "libavif",
       "features": [
@@ -36,19 +76,33 @@
         "simd"
       ]
     },
+    {
+      "name": "mman",
+      "platform": "windows"
+    },
+    {
+      "name": "pthread",
+      "platform": "windows"
+    },
     "simdutf",
     {
       "name": "skia",
       "platform": "osx",
       "features": [
         "metal",
-        "fontconfig"
+        "fontconfig",
+        "harfbuzz",
+        "icu"
       ]
     },
     {
       "name": "skia",
       "platform": "linux | freebsd | openbsd | windows",
       "features": [
+        "freetype",
+        "fontconfig",
+        "harfbuzz",
+        "icu",
         "vulkan"
       ]
     },
@@ -69,8 +123,16 @@
   ],
   "overrides": [
     {
+      "name": "angle",
+      "version": "chromium_5414#9"
+    },
+    {
       "name": "curl",
       "version": "8.10.1#0"
+    },
+    {
+      "name": "ffmpeg",
+      "version": "6.1.1#11"
     },
     {
       "name": "fontconfig",
@@ -90,7 +152,11 @@
     },
     {
       "name": "libpng",
-      "version": "1.6.43#1"
+      "version": "1.6.43#3"
+    },
+    {
+      "name": "libproxy",
+      "version": "0.4.18#3"
     },
     {
       "name": "libavif",
@@ -102,7 +168,7 @@
     },
     {
       "name": "simdutf",
-      "version": "5.5.0#0"
+      "version": "5.6.0#0"
     },
     {
       "name": "skia",

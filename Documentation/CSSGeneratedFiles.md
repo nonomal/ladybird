@@ -1,8 +1,8 @@
 # CSS Generated Files
 
 We generate a significant amount of CSS-related code, taking in one or more .json files in
-[`Userland/Libraries/LibWeb/CSS`](../Userland/Libraries/LibWeb/CSS) and producing C++ code from them, located in
-`Build/<build-preset>/Lagom/Userland/Libraries/LibWeb/CSS/`.
+[`Libraries/LibWeb/CSS`](../Libraries/LibWeb/CSS) and producing C++ code from them, located in
+`Build/<build-preset>/Lagom/Libraries/LibWeb/CSS/`.
 It's likely that you'll need to work with these if you add or modify a CSS property or its values.
 
 The generators are found in [`Meta/Lagom/Tools/CodeGenerators/LibWeb`](../Meta/Lagom/Tools/CodeGenerators/LibWeb).
@@ -11,7 +11,7 @@ They are run automatically as part of the build, and most of the time you can ig
 ## Properties.json
 
 Each CSS property has an entry here, which describes what values it accepts, whether it's inherited, and similar data.
-This generates `PropertyID.h` and `PropertyID.cpp`.
+This generates `PropertyID.h`, `PropertyID.cpp`, `GeneratedCSSStyleProperties.h`, `GeneratedCSSStyleProperties.cpp` and `GeneratedCSSStyleProperties.idl`.
 Most of this data is found in the information box for that property in the relevant CSS spec.
 
 The file is organized as a single JSON object, with keys being property names, and the values being the data for that property.
@@ -19,21 +19,21 @@ Each property will have some set of these fields on it:
 
 (Note that required fields are not required on properties with `legacy-alias-for` or `logical-alias-for` set.)
 
-| Field                      | Required | Default | Description                                                                                                                               | Generated functions                                                           |
-|----------------------------|----------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
-| `affects-layout`           | No       | `true`  | Boolean. Whether changing this property will invalidate the element's layout.                                                             | `bool property_affects_layout(PropertyID)`                                    |
-| `affects-stacking-context` | No       | `false` | Boolean. Whether this property can cause a new stacking context for the element.                                                          | `bool property_affects_stacking_context(PropertyID)`                          |
-| `animation-type`           | Yes      |         | String. How the property should be animated. Defined by the spec. See below.                                                              | `AnimationType animation_type_from_longhand_property(PropertyID)`             |
-| `inherited`                | Yes      |         | Boolean. Whether the property is inherited by its child elements.                                                                         | `bool is_inherited_property(PropertyID)`                                      |
-| `initial`                  | Yes      |         | String. The property's initial value if it is not specified.                                                                              | `NonnullRefPtr<CSSStyleValue> property_initial_value(JS::Realm&, PropertyID)` |
-| `legacy-alias-for`         | No       | Nothing | String. The name of a property this is an alias for. See below.                                                                           |                                                                               |
-| `logical-alias-for`        | No       | Nothing | Array of strings. The name of a property this is an alias for. See below.                                                                 |                                                                               |
-| `longhands`                | No       | `[]`    | Array of strings. If this is a shorthand, these are the property names that it expands out into.                                          | `Vector<PropertyID> longhands_for_shorthand(PropertyID)`                      |
-| `max-values`               | No       | `1`     | Integer. How many values can be parsed for this property. eg, `margin` can have up to 4 values.                                           | `size_t property_maximum_value_count(PropertyID)`                             |
-| `percentages-resolve-to`   | No       | Nothing | String. What type percentages get resolved to. eg, for `width` percentages are resolved to `length` values.                               | `Optional<ValueType> property_resolves_percentages_relative_to(PropertyID)`   |
-| `quirks`                   | No       | `[]`    | Array of strings. Some properties have special behavior in "quirks mode", which are listed here. See below.                               | `bool property_has_quirk(PropertyID, Quirk)`                                  |
-| `valid-identifiers`        | No       | `[]`    | Array of strings. Which keywords the property accepts. Consider defining an enum instead and putting its name in the `valid-types` array. | `bool property_accepts_keyword(PropertyID, Keyword)`                          |
-| `valid-types`              | No       | `[]`    | Array of strings. Which value types the property accepts. See below.                                                                      | `bool property_accepts_type(PropertyID, ValueType)`                           |
+| Field                      | Required | Default | Description                                                                                                                               | Generated functions                                                         |
+|----------------------------|----------|---------|-------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `affects-layout`           | No       | `true`  | Boolean. Whether changing this property will invalidate the element's layout.                                                             | `bool property_affects_layout(PropertyID)`                                  |
+| `affects-stacking-context` | No       | `false` | Boolean. Whether this property can cause a new stacking context for the element.                                                          | `bool property_affects_stacking_context(PropertyID)`                        |
+| `animation-type`           | Yes      |         | String. How the property should be animated. Defined by the spec. See below.                                                              | `AnimationType animation_type_from_longhand_property(PropertyID)`           |
+| `inherited`                | Yes      |         | Boolean. Whether the property is inherited by its child elements.                                                                         | `bool is_inherited_property(PropertyID)`                                    |
+| `initial`                  | Yes      |         | String. The property's initial value if it is not specified.                                                                              | `NonnullRefPtr<CSSStyleValue> property_initial_value(PropertyID)`           |
+| `legacy-alias-for`         | No       | Nothing | String. The name of a property this is an alias for. See below.                                                                           |                                                                             |
+| `logical-alias-for`        | No       | Nothing | Array of strings. The name of a property this is an alias for. See below.                                                                 |                                                                             |
+| `longhands`                | No       | `[]`    | Array of strings. If this is a shorthand, these are the property names that it expands out into.                                          | `Vector<PropertyID> longhands_for_shorthand(PropertyID)`                    |
+| `max-values`               | No       | `1`     | Integer. How many values can be parsed for this property. eg, `margin` can have up to 4 values.                                           | `size_t property_maximum_value_count(PropertyID)`                           |
+| `percentages-resolve-to`   | No       | Nothing | String. What type percentages get resolved to. eg, for `width` percentages are resolved to `length` values.                               | `Optional<ValueType> property_resolves_percentages_relative_to(PropertyID)` |
+| `quirks`                   | No       | `[]`    | Array of strings. Some properties have special behavior in "quirks mode", which are listed here. See below.                               | `bool property_has_quirk(PropertyID, Quirk)`                                |
+| `valid-identifiers`        | No       | `[]`    | Array of strings. Which keywords the property accepts. Consider defining an enum instead and putting its name in the `valid-types` array. | `bool property_accepts_keyword(PropertyID, Keyword)`                        |
+| `valid-types`              | No       | `[]`    | Array of strings. Which value types the property accepts. See below.                                                                      | `bool property_accepts_type(PropertyID, ValueType)`                         |
 
 ### `animation-type`
 
@@ -173,7 +173,7 @@ Parameter definitions have the following properties:
 
 | Field      | Description                                  |
 |------------|----------------------------------------------|
-| `type`     | String. Accepted type for the parameter.     | 
+| `type`     | String. Accepted type for the parameter.     |
 | `required` | Boolean. Whether this parameter is required. |
 
 The generated code provides:

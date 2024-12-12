@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/BitCast.h>
+#include <AK/Noncopyable.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeList.h>
 
@@ -267,30 +268,9 @@ public:
     {
     }
 
-    Variant(Variant const&)
-    requires(!(IsCopyConstructible<Ts> && ...))
-    = delete;
-    Variant(Variant const&) = default;
-
-    Variant(Variant&&)
-    requires(!(IsMoveConstructible<Ts> && ...))
-    = delete;
-    Variant(Variant&&) = default;
-
-    ~Variant()
-    requires(!(IsDestructible<Ts> && ...))
-    = delete;
-    ~Variant() = default;
-
-    Variant& operator=(Variant const&)
-    requires(!(IsCopyConstructible<Ts> && ...) || !(IsDestructible<Ts> && ...))
-    = delete;
-    Variant& operator=(Variant const&) = default;
-
-    Variant& operator=(Variant&&)
-    requires(!(IsMoveConstructible<Ts> && ...) || !(IsDestructible<Ts> && ...))
-    = delete;
-    Variant& operator=(Variant&&) = default;
+    AK_MAKE_CONDITIONALLY_COPYABLE(Variant, <Ts>&&...);
+    AK_MAKE_CONDITIONALLY_MOVABLE(Variant, <Ts>&&...);
+    AK_MAKE_CONDITIONALLY_DESTRUCTIBLE(Variant, <Ts>&&...);
 
     ALWAYS_INLINE Variant(Variant const& old)
     requires(!(IsTriviallyCopyConstructible<Ts> && ...))
@@ -519,9 +499,24 @@ private:
 template<typename... Ts>
 struct TypeList<Variant<Ts...>> : TypeList<Ts...> { };
 
+namespace Detail {
+template<typename T1, typename T2>
+struct FlattenVariant;
+
+template<typename... Ts1, typename... Ts2>
+struct FlattenVariant<::AK::Variant<Ts1...>, ::AK::Variant<Ts2...>> {
+    using type = ::AK::Variant<Ts1..., Ts2...>;
+};
+
+}
+
+template<typename T1, typename T2>
+using FlattenVariant = Detail::FlattenVariant<T1, T2>::type;
+
 }
 
 #if USING_AK_GLOBALLY
 using AK::Empty;
+using AK::FlattenVariant;
 using AK::Variant;
 #endif
